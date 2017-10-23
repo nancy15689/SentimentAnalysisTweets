@@ -16,7 +16,33 @@ neg_date = []
 pos_query = [] 
 neg_query = [] 
 pos_author = [] 
-neg_author = [] 
+neg_author = []
+
+def one_line(string):
+	pre = 0
+	current = 0
+	arr = []
+	punctuation = {"?":0,"!":1, ",":2, ".":3, ";":4}
+	while current < len(string):
+		if string[current] in punctuation:
+			if pre < current:
+				arr.append(string[pre:current])
+			if punctuation[string[current]] == 3 and current < len(string) - 2 and string[current:current+3] == "...":
+				arr.append(string[current:current+3])
+				current += 3
+				pre = current
+			else:
+				arr.append(string[current])
+				current += 1
+				pre = current
+		elif string[current] == " ":
+			if pre < current:
+				arr.append(string[pre:current])
+			current += 1
+			pre = current
+		else:
+			current += 1
+	return arr 
 
 # read training data, insert start and end token, and save each line to trainset
 def read_training_data(train_path, emoticon): 
@@ -35,7 +61,7 @@ def read_training_data(train_path, emoticon):
 				neg_date.append(parts[2])
 				neg_query.append(parts[3])
 				neg_author.append(parts[4])				
-			line_token = parts[5].split()
+			line_token = one_line(parts[5])
 			line_token.insert(0, START_TOKEN)
 			line_token.append(END_TOKEN)
 			if emoticon == 0: 
