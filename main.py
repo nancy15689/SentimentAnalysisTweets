@@ -18,6 +18,15 @@ neg_query = []
 pos_author = [] 
 neg_author = []
 
+def separate_nots(string):
+	if (string[-3:] == "n't"):
+		if string.lower() == "can't":
+			return ["can", "'t"]
+		else:
+			return [string[:-3], "n't"]
+	else:
+		return [string]
+
 def one_line(string):
 	pre = 0
 	current = 0
@@ -26,13 +35,13 @@ def one_line(string):
 	while current < len(string):
 		if string[current] in punctuation:
 			if pre < current:
-				arr.append(string[pre:current])
+				arr.extend(separate_nots(string[pre:current]))
 			if punctuation[string[current]] == 3 and current < len(string) - 2 and string[current:current+3] == "...":
 				arr.append(string[current:current+3])
 				current += 3
 				pre = current
 			else:
-				arr.append(string[current])
+				arr.extend(separate_nots(string[current]))
 				current += 1
 				pre = current
 		elif string[current] == " ":
