@@ -153,35 +153,82 @@ def cross_validate(pos_train_path, neg_train_path, num_fold):
 			(i + 1) * pos_num_fold_examples, pos_num_train_examples], 0))
 		neg_models.append(train([0, i * neg_num_fold_examples, 
 			(i + 1) * neg_num_fold_examples, neg_num_train_examples], 1))
-	for j in range(1, 2): 
+	for j in range(1, 11): 
+		j_fraction = j * 0.1
 		for i in range(num_fold): 
-			pos_models[i].unknown(j)
-			neg_models[i].unknown(j)			 
-		for k in range(1, 2): 
+			pos_models[i].unknown(j_fraction)
+			neg_models[i].unknown(j_fraction)			 
+		for k in range(1, 11): 
+			k_fraction = k * 0.1
+			print j_fraction, k_fraction
 			pos_evaluation_accuracy = 0 
 			neg_evaluation_accuracy = 0 
 			for l in range(num_fold): 
-				pos_unigram, pos_bigram = pos_models[l].smoothing(k)
-				neg_unigram, neg_bigram = neg_models[l].smoothing(k)
+				pos_unigram, pos_bigram = pos_models[l].smoothing(k_fraction)
+				neg_unigram, neg_bigram = neg_models[l].smoothing(k_fraction)
 				pos_evaluation_accuracy += evaluate(0, pos_unigram, pos_bigram, 
 					neg_unigram, neg_bigram, l * pos_num_fold_examples, 
-					min((l + 1) * pos_num_fold_examples, pos_num_train_examples), 2, k)
+					min((l + 1) * pos_num_fold_examples, pos_num_train_examples), 2, k_fraction)
 				neg_evaluation_accuracy += evaluate(1, pos_unigram, pos_bigram, 
 					neg_unigram, neg_bigram, l * neg_num_fold_examples, 
-					min((l + 1) * neg_num_fold_examples, neg_num_train_examples), 2, k)
+					min((l + 1) * neg_num_fold_examples, neg_num_train_examples), 2, k_fraction)
 			pos_evaluation_accuracy /= (num_fold * 1.0)
 			neg_evaluation_accuracy /= (num_fold * 1.0)
 			evaluation_accuracy = pos_evaluation_accuracy + neg_evaluation_accuracy 
 			if max_accuracy < evaluation_accuracy:
-				max_j = j  
+				max_j = j_fraction 
 				max_accuracy = evaluation_accuracy
-				max_k = k 
+				max_k = k_fraction 
 	print max_accuracy * 1.0 / (pos_num_fold_examples + neg_num_fold_examples)
 	final_pos_model = train([0, pos_num_train_examples], 0)
 	final_neg_model = train([1, neg_num_train_examples], 1)
 	final_pos_model.unknown(max_j)
 	final_neg_model.unknown(max_j)
-	return final_pos_model.smoothing(max_k), final_neg_model.smoothing(max_k)
+	print max_j, max_k
+	return final_pos_model.smoothing(max_k), final_neg_model.smoothing(max_k), max_k
+
+def training_perpexity_to_file(emoticon, pos_model, neg_model, k): 
+	correct = 0 
+	pos_unigram, pos_bigram = pos_model
+	neg_unigram, neg_bigram = neg_model
+	if emoticon == 0: 
+		dataset = pos_trainset
+		file_name = "pos_train_perplexity.txt"
+	else: 
+		dataset = neg_trainset
+		file_name = "neg_train_perplexity.txt"
+	with open(file_name, 'wt') as file:
+		for i in range(len(dataset)): 
+			tokens = dataset[i]
+			prob_pos = 0 
+			prob_neg = 0 
+			for j in range(1, len(tokens)): 
+				prev_w = tokens[j - 1]
+				w = tokens[j]
+				if prev_w not in pos_unigram: 
+					prev_w = "<unknown>"
+				if w not in pos_unigram: 
+					w = "<unknown>"
+				if (prev_w, w) in pos_bigram: 
+					prob_pos += log(pos_bigram[(prev_w, w)])
+				else: 
+					prob_pos += log(k * 1.0 /(pos_unigram[prev_w] + len(pos_unigram) * k))
+				prev_w = tokens[j - 1]
+				w = tokens[j]
+				if prev_w not in neg_unigram: 
+					prev_w = "<unknown>"
+				if w not in neg_unigram: 
+					w = "<unknown>"
+				if (prev_w, w) in neg_bigram: 
+					prob_neg += log(neg_bigram[(prev_w, w)])
+				else: 
+					prob_neg += log(k * 1.0 /(neg_unigram[prev_w] + len(neg_unigram) * k))
+				file.write(str(prob_pos) + " " + str(prob_neg) + "\n")
+			if emoticon == 0 and prob_pos >= prob_neg:
+				correct += 1 
+			elif emoticon == 1 and prob_pos <= prob_neg: 
+				correct += 1
+	return correct
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='ngram model parameters')
@@ -196,4 +243,8 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 	optimal_parameters = cross_validate(args.pos_train_path, 
 		args.neg_train_path, args.num_fold)
+	pos_model, neg_model, max_k = optimal_parameters
+	pos_correct = training_perpexity_to_file(0, pos_model, neg_model, max_k)
+	neg_correct = training_perpexity_to_file(1, pos_model, neg_model, max_k)
+	print pos_correct, neg_correct
 	# test_accuracy = test(args.test_path, optimal_parameters)
