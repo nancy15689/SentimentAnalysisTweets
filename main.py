@@ -17,6 +17,8 @@ pos_query = []
 neg_query = [] 
 pos_author = [] 
 neg_author = []
+pos_perplexity = [] 
+neg_perplexity = [] 
 
 def separate_nots(string):
 	if (string[-3:] == "n't"):
@@ -224,6 +226,10 @@ def training_perpexity_to_file(emoticon, pos_model, neg_model, k):
 				else: 
 					prob_neg += log(k * 1.0 /(neg_unigram[prev_w] + len(neg_unigram) * k))
 				file.write(str(prob_pos) + " " + str(prob_neg) + "\n")
+				if emoticon == 0: 
+					pos_perplexity.append((prob_pos, prob_neg))
+				else: 
+					neg_perplexity.append((prob_pos, prob_neg))
 			if emoticon == 0 and prob_pos >= prob_neg:
 				correct += 1 
 			elif emoticon == 1 and prob_pos <= prob_neg: 
