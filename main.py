@@ -19,6 +19,9 @@ pos_author = []
 neg_author = []
 pos_perplexity = [] 
 neg_perplexity = [] 
+test_set = [] 
+test_perplexity = [] 
+test_y = [] 
 
 def separate_nots(string):
 	if (string[-3:] == "n't"):
@@ -80,6 +83,18 @@ def read_training_data(train_path, emoticon):
 			else: 
 				neg_trainset.append(line_token)
 
+def read_testing_data(test_path): 
+	global test_y, test_set
+	with open(test_path, 'rt') as file: 
+		for line in file: 
+			if not line: continue 
+			parts = line.split(",")
+			test_y.append(parts[0])
+			line_token = one_line(parts[5])
+			line_token.insert(0, START_TOKEN)
+			line_token.append(END_TOKEN)
+			test_set.append(line_token)
+
 # return unigram and bigram to train on part of dataset and with k smoothing
 def train(list_indices, emoticon): 
 	if emoticon == 0: 
@@ -134,9 +149,6 @@ def evaluate(emoticon, pos_unigram, pos_bigram, neg_unigram, neg_bigram, start, 
 			correct += 1
 	return correct
 
-def test(test_path, parameters): 
-	return 0 
-
 # cross validation with num_fold and hyperparameter search 
 def cross_validate(pos_train_path, neg_train_path, num_fold):
 	read_training_data(pos_train_path, 0)
@@ -155,13 +167,13 @@ def cross_validate(pos_train_path, neg_train_path, num_fold):
 			(i + 1) * pos_num_fold_examples, pos_num_train_examples], 0))
 		neg_models.append(train([0, i * neg_num_fold_examples, 
 			(i + 1) * neg_num_fold_examples, neg_num_train_examples], 1))
-	for j in range(1, 11): 
+	for j in range(6, 7): 
 		j_fraction = j * 0.1
 		for i in range(num_fold): 
 			pos_models[i].unknown(j_fraction)
 			neg_models[i].unknown(j_fraction)			 
-		for k in range(1, 11): 
-			k_fraction = k * 0.1
+		for k in range(85, 86): 
+			k_fraction = k * 0.01
 			print j_fraction, k_fraction
 			pos_evaluation_accuracy = 0 
 			neg_evaluation_accuracy = 0 
@@ -177,6 +189,7 @@ def cross_validate(pos_train_path, neg_train_path, num_fold):
 			pos_evaluation_accuracy /= (num_fold * 1.0)
 			neg_evaluation_accuracy /= (num_fold * 1.0)
 			evaluation_accuracy = pos_evaluation_accuracy + neg_evaluation_accuracy 
+			print evaluation_accuracy
 			if max_accuracy < evaluation_accuracy:
 				max_j = j_fraction 
 				max_accuracy = evaluation_accuracy
@@ -196,9 +209,13 @@ def training_perpexity_to_file(emoticon, pos_model, neg_model, k):
 	if emoticon == 0: 
 		dataset = pos_trainset
 		file_name = "pos_train_perplexity.txt"
-	else: 
+	elif emoticon == 1: 
 		dataset = neg_trainset
 		file_name = "neg_train_perplexity.txt"
+	else: 
+		read_testing_data(args.test_path)
+		dataset = test_set
+		file_name = "test_perplexity.txt"
 	with open(file_name, 'wt') as file:
 		for i in range(len(dataset)): 
 			tokens = dataset[i]
@@ -225,15 +242,22 @@ def training_perpexity_to_file(emoticon, pos_model, neg_model, k):
 					prob_neg += log(neg_bigram[(prev_w, w)])
 				else: 
 					prob_neg += log(k * 1.0 /(neg_unigram[prev_w] + len(neg_unigram) * k))
-				file.write(str(prob_pos) + " " + str(prob_neg) + "\n")
-				if emoticon == 0: 
-					pos_perplexity.append((prob_pos, prob_neg))
-				else: 
-					neg_perplexity.append((prob_pos, prob_neg))
+			file.write(str(prob_pos) + " " + str(prob_neg) + "\n")
+			if emoticon == 0: 
+				pos_perplexity.append((prob_pos, prob_neg))
+			elif emoticon == 1: 
+				neg_perplexity.append((prob_pos, prob_neg))
+			else: 
+				test_perplexity.append((prob_pos, prob_neg))
 			if emoticon == 0 and prob_pos >= prob_neg:
 				correct += 1 
 			elif emoticon == 1 and prob_pos <= prob_neg: 
 				correct += 1
+			elif emoticon == 2: 
+				if test_y[i] == '"4"' and prob_pos >= prob_neg: 
+					correct += 1 
+				elif test_y[i] == '"0"' and prob_neg >= prob_pos: 
+					correct += 1
 	return correct
 
 if __name__ == "__main__":
@@ -253,4 +277,7 @@ if __name__ == "__main__":
 	pos_correct = training_perpexity_to_file(0, pos_model, neg_model, max_k)
 	neg_correct = training_perpexity_to_file(1, pos_model, neg_model, max_k)
 	print pos_correct, neg_correct
+	print "start testing"
+	test_correct = training_perpexity_to_file(2, pos_model, neg_model, max_k)
+	print test_correct
 	# test_accuracy = test(args.test_path, optimal_parameters)
