@@ -68,12 +68,13 @@ def main(pos_train, neg_train, pos_per, neg_per, test, test_per):
 			parts = line.split(" ")
 			perplexity_pos.append(parts[0])
 			perplexity_neg.append(parts[1][:-1])
+	print "author",len(authors_list)
 	for i in range(len(authors_list)): 
-		pos_posts.append(pos_authors.get(authors_list[i], total_pos * 1.0 / (len(pos_authors) + len(neg_authors))))
-		neg_posts.append(neg_authors.get(authors_list[i], total_neg * 1.0 / (len(pos_authors) + len(neg_authors))))
-	print (len(month), len(day), len(hour), len(minute), len(second), 
-		len(pos_posts), len(neg_posts), len(perplexity_pos), len(perplexity_neg))
+		pos_posts.append(max(pos_authors.get(authors_list[i],0) - 1, 0))
+		neg_posts.append(max(neg_authors.get(authors_list[i],0) - 1, 0))
+	print len(month), len(day), len(hour), len(minute), len(second), len(pos_posts), len(neg_posts), len(perplexity_pos), len(perplexity_neg)
 	with open('train_input.csv', 'wt') as file: 
+		file.write("month,day,hour,minute,second,pos_posts,neg_posts,pos_perplexity,neg_perplexity,y\n")
 		for i in range(len(month)): 
 			file.write(str(month[i]) + "," + 
 				str(day[i]) + "," + 
@@ -95,8 +96,8 @@ def main(pos_train, neg_train, pos_per, neg_per, test, test_per):
 			test_hour.append(date.hour)
 			test_minute.append(date.minute)
 			test_second.append(date.second)
-			test_pos_posts.append(pos_authors.get(parts[4], total_pos * 1.0 / (len(pos_authors) + len(neg_authors))))
-			test_neg_posts.append(neg_authors.get(parts[4], total_pos * 1.0 / (len(pos_authors) + len(neg_authors))))
+			test_pos_posts.append(pos_authors.get(parts[4], 0))
+			test_neg_posts.append(neg_authors.get(parts[4], 0))
 			if parts[0] == '"0"': 
 				test_y.append(-1)
 			elif parts[0] == '"4"': 
@@ -113,6 +114,7 @@ def main(pos_train, neg_train, pos_per, neg_per, test, test_per):
 			test_perplexity_neg.append(parts[1][:-1])
 
 	with open('test_input.csv', 'wt') as file: 
+		file.write("month,day,hour,minute,second,pos_posts,neg_posts,pos_perplexity,neg_perplexity,y\n")
 		for i in range(len(test_month)): 
 			file.write(str(test_month[i]) + "," + 
 				str(test_day[i]) + "," + 
